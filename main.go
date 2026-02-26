@@ -4,11 +4,16 @@ import (
 	"api-user-crud-go/config"
 	"api-user-crud-go/controller"
 	"api-user-crud-go/exception"
+	grpcserver "api-user-crud-go/grpcserver"
+	"api-user-crud-go/proto"
 	"api-user-crud-go/repository"
 	"api-user-crud-go/service"
 	"log"
+	"net"
 
 	"github.com/gin-gonic/gin"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 func main() {
@@ -30,7 +35,37 @@ func main() {
 	userController := controller.NewUserController(userService)
 
 	// ==========================================
-	// 3. SETUP GIN ROUTER & MIDDLEWARE
+	// 3. START gRPC SERVER (port :50051)
+	// ==========================================
+	go func() {
+		lis, err := net.Listen("tcp", ":50051")
+		if err != nil {
+			log.Fatalf("Gagal mengaktifkan gRPC listener: %v", err)
+		}
+
+		grpcServer := grpc.NewServer()
+
+		// Register UserService gRPC handler (berbagi userService yang sama)
+		proto.RegisterUserServiceServer(grpcServer, grpcserver.NewUserGRPCServer(userService))
+
+		// Register reflection service (untuk grpcurl & tooling lainnya)
+		reflection.Register(grpcServer)
+
+		log.Println("✓ gRPC Server berjalan di grpc://localhost:50051")
+		log.Println("✓ gRPC Methods:")
+		log.Println("  - UserService/CreateUser")
+		log.Println("  - UserService/GetAllUsers")
+		log.Println("  - UserService/GetUser")
+		log.Println("  - UserService/UpdateUser")
+		log.Println("  - UserService/DeleteUser")
+
+		if err := grpcServer.Serve(lis); err != nil {
+			log.Fatalf("Gagal menjalankan gRPC server: %v", err)
+		}
+	}()
+
+	// ==========================================
+	// 4. SETUP GIN ROUTER & MIDDLEWARE
 	// ==========================================
 	router := gin.New()
 
@@ -40,7 +75,7 @@ func main() {
 	router.Use(exception.ErrorHandler())     // Handle error secara konsisten
 
 	// ==========================================
-	// 4. REGISTER ROUTES (API Endpoints)
+	// 5. REGISTER ROUTES (API Endpoints)
 	// ==========================================
 	userRoutes := router.Group("/users")
 	{
@@ -52,10 +87,10 @@ func main() {
 	}
 
 	// ==========================================
-	// 5. START SERVER
+	// 6. START HTTP SERVER (port :8080)
 	// ==========================================
-	log.Println("✓ Server berjalan di http://localhost:8080")
-	log.Println("✓ API Endpoints:")
+	log.Println("✓ HTTP Server berjalan di http://localhost:8080")
+	log.Println("✓ REST API Endpoints:")
 	log.Println("  - POST   /users")
 	log.Println("  - GET    /users")
 	log.Println("  - GET    /users/:id")
@@ -63,6 +98,6 @@ func main() {
 	log.Println("  - DELETE /users/:id")
 
 	if err := router.Run(":8080"); err != nil {
-		log.Fatal("Gagal menjalankan server:", err)
+		log.Fatal("Gagal menjalankan HTTP server:", err)
 	}
 }
