@@ -11,8 +11,10 @@ import (
 // InitDB menginisialisasi koneksi database dan melakukan migrasi.
 // Fungsi ini mengembalikan instance *gorm.DB untuk digunakan di layer lain.
 func InitDB() *gorm.DB {
+	cfg := LoadConfig()
+	
 	// Membuka koneksi ke SQLite database
-	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open(cfg.DBPath), &gorm.Config{})
 	if err != nil {
 		log.Fatal("Gagal koneksi ke database:", err)
 	}

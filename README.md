@@ -12,8 +12,13 @@ API ini adalah implementasi CRUD (Create, Read, Update, Delete) untuk entitas Us
 - **Service Layer**: Business logic (shared antara REST & gRPC)
 - **Controller Layer**: HTTP handlers (REST)
 - **gRPC Server Layer**: gRPC handlers
+- **Middleware Layer**: Authentication & authorization
 - **Exception Layer**: Global error handling
-- **Config Layer**: Database configuration
+- **Config Layer**: Environment-based configuration
+
+## 🚀 Quick Start
+
+Lihat [QUICKSTART.md](QUICKSTART.md) untuk panduan cepat menjalankan aplikasi.
 
 ## 🚀 Tech Stack
 
@@ -201,14 +206,75 @@ Input validasi otomatis:
 
 ## 🚧 Future Enhancements
 
-- [ ] Unit tests untuk setiap layer
+- [x] Unit tests untuk setiap layer
+- [x] Authentication & Authorization (JWT / gRPC interceptor)
+- [x] Docker support
+- [x] Environment-based configuration
 - [ ] Pagination untuk GetAllUsers
-- [ ] Authentication & Authorization (JWT / gRPC interceptor)
 - [ ] Swagger/OpenAPI documentation
-- [ ] Docker support
 - [ ] CI/CD pipeline
 - [ ] gRPC streaming endpoints
-- [ ] Environment-based configuration
+
+## 📚 Additional Documentation
+
+- [Authentication Guide](AUTH.md) - Panduan lengkap JWT authentication
+- [Deployment Guide](DEPLOYMENT.md) - Panduan deployment dengan Docker
+- [Security Guidelines](SECURITY.md) - Security best practices dan checklist
+- [Quick Start](QUICKSTART.md) - Quick start guide
+
+## 🔐 Authentication
+
+API ini menggunakan JWT untuk autentikasi. Lihat [AUTH.md](AUTH.md) untuk detail lengkap.
+
+### Quick Start
+
+1. Register user baru:
+```bash
+curl -X POST http://localhost:8080/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"name":"John","email":"john@example.com","password":"password123","age":25}'
+```
+
+2. Login dan dapatkan token:
+```bash
+curl -X POST http://localhost:8080/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"john@example.com","password":"password123"}'
+```
+
+3. Gunakan token untuk akses protected endpoints:
+```bash
+curl http://localhost:8080/users \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+```
+
+## 🐳 Docker Deployment
+
+```bash
+# Build dan run dengan docker-compose
+docker-compose up -d
+
+# Atau build manual
+docker build -t user-crud-api .
+docker run -p 8080:8080 -p 50051:50051 user-crud-api
+```
+
+Lihat [DEPLOYMENT.md](DEPLOYMENT.md) untuk panduan lengkap.
+
+## ⚙️ Configuration
+
+Copy `.env.example` ke `.env` dan sesuaikan konfigurasi:
+
+```bash
+cp .env.example .env
+```
+
+Environment variables yang tersedia:
+- `HTTP_PORT` - Port REST API (default: 8080)
+- `GRPC_PORT` - Port gRPC (default: 50051)
+- `JWT_SECRET` - Secret key untuk JWT (WAJIB di production)
+- `JWT_EXPIRY_HOURS` - Durasi token (default: 24 jam)
+- `ENV` - Environment: development/production
 
 ## 📄 License
 

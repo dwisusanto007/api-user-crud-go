@@ -5,11 +5,13 @@ import (
 	"api-user-crud-go/controller"
 	"api-user-crud-go/exception"
 	grpcserver "api-user-crud-go/grpcserver"
+	"api-user-crud-go/middleware"
 	"api-user-crud-go/proto"
 	"api-user-crud-go/repository"
 	"api-user-crud-go/service"
 	"log"
 	"net"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
@@ -18,32 +20,48 @@ import (
 
 func main() {
 	// ==========================================
-	// 1. INISIALISASI DATABASE
+	// 1. LOAD CONFIGURATION
+	// ==========================================
+	cfg := config.LoadConfig()
+	cfg.ValidateConfig()
+
+	// Set Gin mode based on environment
+	if cfg.IsProduction() {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
+	// ==========================================
+	// 2. INISIALISASI DATABASE
 	// ==========================================
 	db := config.InitDB()
 
 	// ==========================================
-	// 2. DEPENDENCY INJECTION (Wiring Layers)
+	// 3. DEPENDENCY INJECTION (Wiring Layers)
 	// ==========================================
 	// Repository layer - mengakses database
 	userRepo := repository.NewUserRepository(db)
 
 	// Service layer - business logic, menggunakan repository
 	userService := service.NewUserService(userRepo)
+	authService := service.NewAuthService(userRepo, cfg)
 
 	// Controller layer - HTTP handlers, menggunakan service
 	userController := controller.NewUserController(userService)
+	authController := controller.NewAuthController(authService)
 
 	// ==========================================
-	// 3. START gRPC SERVER (port :50051)
+	// 4. START gRPC SERVER (with auth interceptor)
 	// ==========================================
 	go func() {
-		lis, err := net.Listen("tcp", ":50051")
+		lis, err := net.Listen("tcp", ":"+cfg.GRPCPort)
 		if err != nil {
 			log.Fatalf("Gagal mengaktifkan gRPC listener: %v", err)
 		}
 
-		grpcServer := grpc.NewServer()
+		// Create gRPC server with auth interceptor
+		grpcServer := grpc.NewServer(
+			grpc.UnaryInterceptor(middleware.GRPCAuthInterceptor(cfg)),
+		)
 
 		// Register UserService gRPC handler (berbagi userService yang sama)
 		proto.RegisterUserServiceServer(grpcServer, grpcserver.NewUserGRPCServer(userService))
@@ -51,7 +69,7 @@ func main() {
 		// Register reflection service (untuk grpcurl & tooling lainnya)
 		reflection.Register(grpcServer)
 
-		log.Println("✓ gRPC Server berjalan di grpc://localhost:50051")
+		log.Printf("✓ gRPC Server berjalan di grpc://localhost:%s\n", cfg.GRPCPort)
 		log.Println("✓ gRPC Methods:")
 		log.Println("  - UserService/CreateUser")
 		log.Println("  - UserService/GetAllUsers")
@@ -65,7 +83,7 @@ func main() {
 	}()
 
 	// ==========================================
-	// 4. SETUP GIN ROUTER & MIDDLEWARE
+	// 5. SETUP GIN ROUTER & MIDDLEWARE
 	// ==========================================
 	router := gin.New()
 
@@ -75,9 +93,24 @@ func main() {
 	router.Use(exception.ErrorHandler())     // Handle error secara konsisten
 
 	// ==========================================
-	// 5. REGISTER ROUTES (API Endpoints)
+	// 6. REGISTER ROUTES (API Endpoints)
 	// ==========================================
+	
+	// Health check endpoint (public)
+	router.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
+
+	// Auth routes (public)
+	authRoutes := router.Group("/auth")
+	{
+		authRoutes.POST("/register", authController.Register) // POST /auth/register
+		authRoutes.POST("/login", authController.Login)       // POST /auth/login
+	}
+
+	// User routes (protected with JWT)
 	userRoutes := router.Group("/users")
+	userRoutes.Use(middleware.JWTAuth(cfg)) // Apply JWT middleware
 	{
 		userRoutes.POST("", userController.CreateUser)       // POST /users
 		userRoutes.GET("", userController.GetUsers)          // GET /users
@@ -87,17 +120,22 @@ func main() {
 	}
 
 	// ==========================================
-	// 6. START HTTP SERVER (port :8080)
+	// 7. START HTTP SERVER
 	// ==========================================
-	log.Println("✓ HTTP Server berjalan di http://localhost:8080")
+	log.Printf("✓ HTTP Server berjalan di http://localhost:%s\n", cfg.HTTPPort)
 	log.Println("✓ REST API Endpoints:")
-	log.Println("  - POST   /users")
-	log.Println("  - GET    /users")
-	log.Println("  - GET    /users/:id")
-	log.Println("  - PUT    /users/:id")
-	log.Println("  - DELETE /users/:id")
+	log.Println("  Public:")
+	log.Println("    - GET    /health")
+	log.Println("    - POST   /auth/register")
+	log.Println("    - POST   /auth/login")
+	log.Println("  Protected (requires JWT):")
+	log.Println("    - POST   /users")
+	log.Println("    - GET    /users")
+	log.Println("    - GET    /users/:id")
+	log.Println("    - PUT    /users/:id")
+	log.Println("    - DELETE /users/:id")
 
-	if err := router.Run(":8080"); err != nil {
+	if err := router.Run(":" + cfg.HTTPPort); err != nil {
 		log.Fatal("Gagal menjalankan HTTP server:", err)
 	}
 }

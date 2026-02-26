@@ -13,6 +13,7 @@ type UserRepository interface {
 	Create(user *entity.User) error
 	FindAll() ([]entity.User, error)
 	FindByID(id uint) (*entity.User, error)
+	FindByEmail(email string) (*entity.User, error)
 	Update(user *entity.User) error
 	Delete(id uint) error
 }
@@ -43,6 +44,19 @@ func (r *userRepositoryImpl) FindAll() ([]entity.User, error) {
 func (r *userRepositoryImpl) FindByID(id uint) (*entity.User, error) {
 	var user entity.User
 	err := r.db.First(&user, id).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("user not found")
+		}
+		return nil, err
+	}
+	return &user, nil
+}
+
+// FindByEmail mencari user berdasarkan email.
+func (r *userRepositoryImpl) FindByEmail(email string) (*entity.User, error) {
+	var user entity.User
+	err := r.db.Where("email = ?", email).First(&user).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("user not found")

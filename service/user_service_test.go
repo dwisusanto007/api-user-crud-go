@@ -45,6 +45,15 @@ func (m *mockUserRepo) FindByID(id uint) (*entity.User, error) {
 	return u, nil
 }
 
+func (m *mockUserRepo) FindByEmail(email string) (*entity.User, error) {
+	for _, u := range m.users {
+		if u.Email == email {
+			return u, nil
+		}
+	}
+	return nil, errors.New("user not found")
+}
+
 func (m *mockUserRepo) Update(user *entity.User) error {
 	if _, ok := m.users[user.ID]; !ok {
 		return errors.New("user not found")

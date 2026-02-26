@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    container_name: user-crud-api
+    ports:
+      - "8080:8080"   # HTTP REST API
+      - "50051:50051" # gRPC Server
+    environment:
+      - HTTP_PORT=8080
+      - GRPC_PORT=50051
+      - DB_DRIVER=sqlite
+      - DB_PATH=/data/app.db
+      - JWT_SECRET=${JWT_SECRET:-change-this-secret-in-production}
+      - JWT_EXPIRY_HOURS=24
+      - ENV=production
+    volumes:
+      - ./data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

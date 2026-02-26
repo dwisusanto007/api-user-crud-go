@@ -1,138 +1,309 @@
 {
 	"info": {
 		"name": "User CRUD API - Go",
-		"description": "Collection untuk testing User CRUD API yang dibuat dengan Gin & GORM",
+		"description": "Collection untuk testing User CRUD API dengan JWT Authentication, Gin & GORM",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
-	"item": [
-		{
-			"name": "Create User",
-			"request": {
-				"method": "POST",
-				"header": [
-					{
-						"key": "Content-Type",
-						"value": "application/json"
-					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john.doe@example.com\",\n  \"age\": 25\n}"
-				},
-				"url": {
-					"raw": "http://localhost:8080/users",
-					"protocol": "http",
-					"host": ["localhost"],
-					"port": "8080",
-					"path": ["users"]
-				},
-				"description": "Membuat user baru. Required fields: name, email (valid email), age (min 1)"
-			},
-			"response": []
-		},
-		{
-			"name": "Get All Users",
-			"request": {
-				"method": "GET",
-				"header": [],
-				"url": {
-					"raw": "http://localhost:8080/users",
-					"protocol": "http",
-					"host": ["localhost"],
-					"port": "8080",
-					"path": ["users"]
-				},
-				"description": "Mengambil semua user dari database"
-			},
-			"response": []
-		},
-		{
-			"name": "Get User by ID",
-			"request": {
-				"method": "GET",
-				"header": [],
-				"url": {
-					"raw": "http://localhost:8080/users/1",
-					"protocol": "http",
-					"host": ["localhost"],
-					"port": "8080",
-					"path": ["users", "1"]
-				},
-				"description": "Mengambil user berdasarkan ID. Ganti '1' dengan ID user yang diinginkan"
-			},
-			"response": []
-		},
-		{
-			"name": "Update User",
-			"request": {
-				"method": "PUT",
-				"header": [
-					{
-						"key": "Content-Type",
-						"value": "application/json"
-					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n  \"name\": \"Jane Doe\",\n  \"email\": \"jane.doe@example.com\",\n  \"age\": 30\n}"
-				},
-				"url": {
-					"raw": "http://localhost:8080/users/1",
-					"protocol": "http",
-					"host": ["localhost"],
-					"port": "8080",
-					"path": ["users", "1"]
-				},
-				"description": "Update user berdasarkan ID. Semua field optional (bisa update sebagian)"
-			},
-			"response": []
-		},
-		{
-			"name": "Delete User",
-			"request": {
-				"method": "DELETE",
-				"header": [],
-				"url": {
-					"raw": "http://localhost:8080/users/1",
-					"protocol": "http",
-					"host": ["localhost"],
-					"port": "8080",
-					"path": ["users", "1"]
-				},
-				"description": "Menghapus user berdasarkan ID"
-			},
-			"response": []
-		},
-		{
-			"name": "Create User - Validation Error Example",
-			"request": {
-				"method": "POST",
-				"header": [
-					{
-						"key": "Content-Type",
-						"value": "application/json"
-					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n  \"name\": \"Test User\",\n  \"email\": \"invalid-email\",\n  \"age\": 0\n}"
-				},
-				"url": {
-					"raw": "http://localhost:8080/users",
-					"protocol": "http",
-					"host": ["localhost"],
-					"port": "8080",
-					"path": ["users"]
-				},
-				"description": "Contoh request dengan validasi error (email invalid, age < 1)"
-			},
-			"response": []
-		}
-	],
 	"variable": [
 		{
 			"key": "base_url",
-			"value": "http://localhost:8080"
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Health Check",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/health",
+					"host": ["{{base_url}}"],
+					"path": ["health"]
+				},
+				"description": "Health check endpoint (public)"
+			}
+		},
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "Register",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set(\"token\", jsonData.token);",
+									"    console.log(\"Token saved:\", jsonData.token);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"John Doe\",\n    \"email\": \"john@example.com\",\n    \"password\": \"password123\",\n    \"age\": 25\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/register",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "register"]
+						},
+						"description": "Register user baru. Token akan otomatis tersimpan di collection variable."
+					}
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set(\"token\", jsonData.token);",
+									"    console.log(\"Token saved:\", jsonData.token);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"john@example.com\",\n    \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "login"]
+						},
+						"description": "Login user. Token akan otomatis tersimpan di collection variable."
+					}
+				}
+			]
+		},
+		{
+			"name": "Users (Protected)",
+			"item": [
+				{
+					"name": "Create User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"description": "JWT Token (auto-filled dari Register/Login)"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Jane Doe\",\n    \"email\": \"jane@example.com\",\n    \"age\": 30\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users",
+							"host": ["{{base_url}}"],
+							"path": ["users"]
+						},
+						"description": "Membuat user baru. Required: name, email (valid), age (min 1). Requires JWT token."
+					}
+				},
+				{
+					"name": "Get All Users",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"description": "JWT Token (auto-filled dari Register/Login)"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users",
+							"host": ["{{base_url}}"],
+							"path": ["users"]
+						},
+						"description": "Mengambil semua user. Requires JWT token."
+					}
+				},
+				{
+					"name": "Get User by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"description": "JWT Token (auto-filled dari Register/Login)"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/1",
+							"host": ["{{base_url}}"],
+							"path": ["users", "1"]
+						},
+						"description": "Mengambil user berdasarkan ID. Ganti '1' dengan ID yang diinginkan. Requires JWT token."
+					}
+				},
+				{
+					"name": "Update User",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"description": "JWT Token (auto-filled dari Register/Login)"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Jane Smith\",\n    \"age\": 31\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users/1",
+							"host": ["{{base_url}}"],
+							"path": ["users", "1"]
+						},
+						"description": "Update user berdasarkan ID. Semua field optional (bisa update sebagian). Requires JWT token."
+					}
+				},
+				{
+					"name": "Delete User",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"description": "JWT Token (auto-filled dari Register/Login)"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/1",
+							"host": ["{{base_url}}"],
+							"path": ["users", "1"]
+						},
+						"description": "Menghapus user berdasarkan ID. Requires JWT token."
+					}
+				}
+			]
+		},
+		{
+			"name": "Error Examples",
+			"item": [
+				{
+					"name": "Validation Error - Invalid Email",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Test User\",\n    \"email\": \"invalid-email\",\n    \"password\": \"password123\",\n    \"age\": 25\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/register",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "register"]
+						},
+						"description": "Contoh validation error: email format invalid"
+					}
+				},
+				{
+					"name": "Validation Error - Age < 1",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Test User\",\n    \"email\": \"test@example.com\",\n    \"password\": \"password123\",\n    \"age\": 0\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/register",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "register"]
+						},
+						"description": "Contoh validation error: age < 1"
+					}
+				},
+				{
+					"name": "Unauthorized - No Token",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/users",
+							"host": ["{{base_url}}"],
+							"path": ["users"]
+						},
+						"description": "Contoh error 401: akses protected endpoint tanpa token"
+					}
+				},
+				{
+					"name": "Unauthorized - Invalid Token",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer invalid-token-here"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users",
+							"host": ["{{base_url}}"],
+							"path": ["users"]
+						},
+						"description": "Contoh error 401: token invalid atau expired"
+					}
+				}
+			]
 		}
 	]
 }
