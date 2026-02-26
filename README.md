@@ -1,6 +1,6 @@
 # User CRUD API - Go
 
-REST API sederhana untuk manajemen User menggunakan **Gin Gonic** dan **GORM** dengan arsitektur berlapis (layered architecture).
+REST & gRPC API untuk manajemen User menggunakan **Gin Gonic**, **GORM**, dan **gRPC** dengan arsitektur berlapis (layered architecture).
 
 ## 📋 Deskripsi
 
@@ -9,37 +9,45 @@ API ini adalah implementasi CRUD (Create, Read, Update, Delete) untuk entitas Us
 - **Entity Layer**: Database models
 - **DTO Layer**: Data Transfer Objects untuk request/response
 - **Repository Layer**: Data access logic
-- **Service Layer**: Business logic
-- **Controller Layer**: HTTP handlers
+- **Service Layer**: Business logic (shared antara REST & gRPC)
+- **Controller Layer**: HTTP handlers (REST)
+- **gRPC Server Layer**: gRPC handlers
 - **Exception Layer**: Global error handling
 - **Config Layer**: Database configuration
 
 ## 🚀 Tech Stack
 
-- **Language**: Go 1.23+
-- **Framework**: [Gin Gonic](https://github.com/gin-gonic/gin)
+- **Language**: Go 1.24+
+- **HTTP Framework**: [Gin Gonic](https://github.com/gin-gonic/gin)
 - **ORM**: [GORM](https://gorm.io/)
-- **Database**: SQLite (untuk development, mudah diganti ke PostgreSQL/MySQL)
+- **Database**: SQLite
+- **RPC**: [gRPC](https://grpc.io/) + [Protocol Buffers](https://protobuf.dev/)
 
 ## 📁 Project Structure
 
 ```
 api-user-crud-go/
-├── config/             # Database configuration
+├── config/                 # Database configuration
 │   └── database.go
-├── entity/             # Database models
+├── entity/                 # Database models
 │   └── user.go
-├── dto/                # Data Transfer Objects
+├── dto/                    # Data Transfer Objects
 │   └── user_dto.go
-├── repository/         # Data access layer
+├── repository/             # Data access layer
 │   └── user_repository.go
-├── service/            # Business logic layer
+├── service/                # Business logic layer (shared REST & gRPC)
 │   └── user_service.go
-├── controller/         # HTTP handlers
+├── controller/             # REST HTTP handlers
 │   └── user_controller.go
-├── exception/          # Error handling middleware
+├── grpcserver/             # gRPC handlers
+│   └── user_grpc_server.go
+├── proto/                  # Protobuf definitions & generated code
+│   ├── user.proto
+│   ├── user.pb.go
+│   └── user_grpc.pb.go
+├── exception/              # Error handling middleware
 │   └── error_handler.go
-├── main.go            # Application entry point
+├── main.go                 # Application entry point
 ├── go.mod
 └── User_CRUD_API.postman_collection.json
 ```
@@ -48,36 +56,32 @@ api-user-crud-go/
 
 ### Prerequisites
 
-- Go 1.23 atau lebih tinggi
+- Go 1.24 atau lebih tinggi
 - Git
+- `protoc` (hanya jika ingin regenerate proto) → `brew install protobuf`
 
-### Clone Repository
+### Clone & Install
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/dwisusanto007/api-user-crud-go.git
 cd api-user-crud-go
-```
-
-### Install Dependencies
-
-```bash
 go mod tidy
 ```
 
 ## ▶️ Running the Application
 
 ```bash
-# Jalankan aplikasi
 go run main.go
-
-# Atau build dan jalankan
-go build .
-./api-user-crud-go
 ```
 
-Server akan berjalan di `http://localhost:8080`
+Server akan berjalan di dua port sekaligus:
 
-## 📡 API Endpoints
+| Server | Port | Protocol |
+|--------|------|----------|
+| REST API | `:8080` | HTTP/JSON |
+| gRPC Server | `:50051` | HTTP/2 + Protobuf |
+
+## 📡 REST API Endpoints
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -87,106 +91,88 @@ Server akan berjalan di `http://localhost:8080`
 | PUT | `/users/:id` | Update user |
 | DELETE | `/users/:id` | Delete user |
 
-## 📝 API Usage Examples
-
-### Create User
+### REST Usage Examples
 
 ```bash
+# Create user
 curl -X POST http://localhost:8080/users \
   -H "Content-Type: application/json" \
-  -d '{
-    "name": "John Doe",
-    "email": "john@example.com",
-    "age": 25
-  }'
-```
+  -d '{"name": "John Doe", "email": "john@example.com", "age": 25}'
 
-**Response:**
-```json
-{
-  "id": 1,
-  "name": "John Doe",
-  "email": "john@example.com",
-  "age": 25
-}
-```
-
-### Get All Users
-
-```bash
+# Get all users
 curl http://localhost:8080/users
-```
 
-**Response:**
-```json
-[
-  {
-    "id": 1,
-    "name": "John Doe",
-    "email": "john@example.com",
-    "age": 25
-  }
-]
-```
-
-### Get User by ID
-
-```bash
+# Get user by ID
 curl http://localhost:8080/users/1
-```
 
-### Update User
-
-```bash
+# Update user
 curl -X PUT http://localhost:8080/users/1 \
   -H "Content-Type: application/json" \
-  -d '{
-    "name": "Jane Doe",
-    "age": 30
-  }'
-```
+  -d '{"name": "Jane Doe", "age": 30}'
 
-### Delete User
-
-```bash
+# Delete user
 curl -X DELETE http://localhost:8080/users/1
 ```
 
-## 🧪 Testing with Postman
+## ⚡ gRPC Endpoints
 
-1. Import file `User_CRUD_API.postman_collection.json` ke Postman
-2. Collection berisi semua endpoint yang siap digunakan
-3. Jalankan request sesuai kebutuhan
+| RPC Method | Request | Response |
+|---|---|---|
+| `CreateUser` | `CreateUserRequest` | `UserMessage` |
+| `GetAllUsers` | `GetAllUsersRequest` | `GetAllUsersResponse` |
+| `GetUser` | `GetUserRequest` | `UserMessage` |
+| `UpdateUser` | `UpdateUserRequest` | `UserMessage` |
+| `DeleteUser` | `DeleteUserRequest` | `DeleteUserResponse` |
+
+### gRPC Usage with grpcurl
+
+Install grpcurl: `brew install grpcurl`
+
+```bash
+# Create user
+grpcurl -plaintext -d '{"name":"John Doe","email":"john@example.com","age":25}' \
+  localhost:50051 user.UserService/CreateUser
+
+# Get all users
+grpcurl -plaintext localhost:50051 user.UserService/GetAllUsers
+
+# Get user by ID
+grpcurl -plaintext -d '{"id":1}' localhost:50051 user.UserService/GetUser
+
+# Update user
+grpcurl -plaintext -d '{"id":1,"name":"Jane Doe","age":30}' \
+  localhost:50051 user.UserService/UpdateUser
+
+# Delete user
+grpcurl -plaintext -d '{"id":1}' localhost:50051 user.UserService/DeleteUser
+```
+
+> Reflection service sudah diregistrasi — tidak perlu flag `--proto` saat menggunakan grpcurl.
 
 ## 🏗️ Architecture
 
-API ini menggunakan **Layered Architecture** dengan dependency injection:
-
 ```
-Database (GORM)
-    ↓
-Repository (data access)
-    ↓
-Service (business logic)
-    ↓
-Controller (HTTP handlers)
-    ↓
-Gin Router (routes + middleware)
+HTTP Client (:8080)       gRPC Client (:50051)
+        |                         |
+   Gin Controller           gRPC Server
+        |                         |
+        +--------> UserService <--+
+                       |
+                  Repository
+                       |
+                  SQLite DB
 ```
 
 ### Keuntungan Arsitektur Ini:
 
 - ✅ **Separation of Concerns**: Setiap layer punya tanggung jawab jelas
+- ✅ **Shared Business Logic**: REST & gRPC menggunakan `UserService` yang sama
 - ✅ **Testability**: Mudah di-unit test dengan mocking
-- ✅ **Maintainability**: Mudah menemukan dan memodifikasi code
-- ✅ **Scalability**: Mudah menambah fitur baru
-- ✅ **Reusability**: Service & repository bisa dipakai ulang
+- ✅ **Scalability**: Mudah menambah fitur baru di kedua protokol
 
 ## 📦 Database
 
-Database menggunakan SQLite dengan file `test.db` yang akan dibuat otomatis saat aplikasi pertama kali dijalankan.
-
-### Database Schema
+SQLite dengan file `test.db` yang dibuat otomatis saat aplikasi pertama dijalankan.
 
 **Table: users**
 
@@ -202,30 +188,26 @@ Database menggunakan SQLite dengan file `test.db` yang akan dibuat otomatis saat
 
 ## 🔒 Validasi
 
-Input validasi otomatis menggunakan Gin binding tags:
+Input validasi otomatis:
 
 - **name**: Required
-- **email**: Required, harus format email valid
+- **email**: Required, format email valid
 - **age**: Required, minimal 1
 
-Contoh error response:
-```json
-{
-  "error": "Invalid input",
-  "message": "Key: 'CreateUserRequest.Email' Error:Field validation for 'Email' failed on the 'email' tag"
-}
-```
+## 🧪 Testing with Postman
+
+1. Import `User_CRUD_API.postman_collection.json` ke Postman
+2. Collection berisi semua REST endpoint yang siap digunakan
 
 ## 🚧 Future Enhancements
 
 - [ ] Unit tests untuk setiap layer
-- [ ] Pagination untuk GET /users
-- [ ] Authentication & Authorization (JWT)
+- [ ] Pagination untuk GetAllUsers
+- [ ] Authentication & Authorization (JWT / gRPC interceptor)
 - [ ] Swagger/OpenAPI documentation
 - [ ] Docker support
 - [ ] CI/CD pipeline
-- [ ] Logging dengan structured logger (zerolog/zap)
-- [ ] Database migration files
+- [ ] gRPC streaming endpoints
 - [ ] Environment-based configuration
 
 ## 📄 License
@@ -234,4 +216,4 @@ MIT License
 
 ## 👨‍💻 Author
 
-Dibuat sebagai project pembelajaran Golang dengan Gin & GORM.
+Dibuat sebagai project pembelajaran Golang dengan Gin, GORM, dan gRPC.
